@@ -1,0 +1,422 @@
+# space
+ui_print " "
+
+# var
+UID=`id -u`
+[ ! "$UID" ] && UID=0
+FIRARCH=`grep_get_prop ro.bionic.arch`
+SECARCH=`grep_get_prop ro.bionic.2nd_arch`
+ABILIST=`grep_get_prop ro.product.cpu.abilist`
+if [ ! "$ABILIST" ]; then
+  ABILIST=`grep_get_prop ro.system.product.cpu.abilist`
+fi
+if [ "$FIRARCH" == arm64 ]\
+&& ! echo "$ABILIST" | grep -q arm64-v8a; then
+  if [ "$ABILIST" ]; then
+    ABILIST="$ABILIST,arm64-v8a"
+  else
+    ABILIST=arm64-v8a
+  fi
+fi
+if [ "$FIRARCH" == x64 ]\
+&& ! echo "$ABILIST" | grep -q x86_64; then
+  if [ "$ABILIST" ]; then
+    ABILIST="$ABILIST,x86_64"
+  else
+    ABILIST=x86_64
+  fi
+fi
+if [ "$SECARCH" == arm ]\
+&& ! echo "$ABILIST" | grep -q armeabi; then
+  if [ "$ABILIST" ]; then
+    ABILIST="$ABILIST,armeabi"
+  else
+    ABILIST=armeabi
+  fi
+fi
+if [ "$SECARCH" == arm ]\
+&& ! echo "$ABILIST" | grep -q armeabi-v7a; then
+  if [ "$ABILIST" ]; then
+    ABILIST="$ABILIST,armeabi-v7a"
+  else
+    ABILIST=armeabi-v7a
+  fi
+fi
+if [ "$SECARCH" == x86 ]\
+&& ! echo "$ABILIST" | grep -q x86; then
+  if [ "$ABILIST" ]; then
+    ABILIST="$ABILIST,x86"
+  else
+    ABILIST=x86
+  fi
+fi
+ABILIST32=`grep_get_prop ro.product.cpu.abilist32`
+if [ ! "$ABILIST32" ]; then
+  ABILIST32=`grep_get_prop ro.system.product.cpu.abilist32`
+fi
+if [ "$SECARCH" == arm ]\
+&& ! echo "$ABILIST32" | grep -q armeabi; then
+  if [ "$ABILIST32" ]; then
+    ABILIST32="$ABILIST32,armeabi"
+  else
+    ABILIST32=armeabi
+  fi
+fi
+if [ "$SECARCH" == arm ]\
+&& ! echo "$ABILIST32" | grep -q armeabi-v7a; then
+  if [ "$ABILIST32" ]; then
+    ABILIST32="$ABILIST32,armeabi-v7a"
+  else
+    ABILIST32=armeabi-v7a
+  fi
+fi
+if [ "$SECARCH" == x86 ]\
+&& ! echo "$ABILIST32" | grep -q x86; then
+  if [ "$ABILIST32" ]; then
+    ABILIST32="$ABILIST32,x86"
+  else
+    ABILIST32=x86
+  fi
+fi
+if [ ! "$ABILIST32" ]; then
+  [ -f /system/lib/libandroid.so ] && ABILIST32=true
+fi
+
+# log
+if [ "$BOOTMODE" != true ]; then
+  FILE=/data/media/"$UID"/$MODID\_recovery.log
+  ui_print "- Log will be saved at $FILE"
+  exec 2>$FILE
+  ui_print " "
+fi
+
+# optionals
+OPTIONALS=/data/media/"$UID"/optionals.prop
+if [ ! -f $OPTIONALS ]; then
+  touch $OPTIONALS
+fi
+
+# debug
+if [ "`grep_prop debug.log $OPTIONALS`" == 1 ]; then
+  ui_print "- The install log will contain detailed information"
+  set -x
+  ui_print " "
+fi
+
+# recovery
+if [ "$BOOTMODE" != true ]; then
+  MODPATH_UPDATE=`echo $MODPATH | sed 's|modules/|modules_update/|g'`
+  rm -f $MODPATH/update
+  rm -rf $MODPATH_UPDATE
+fi
+
+# run
+. $MODPATH/function.sh
+
+# info
+MODVER=`grep_prop version $MODPATH/module.prop`
+MODVERCODE=`grep_prop versionCode $MODPATH/module.prop`
+ui_print " ID=$MODID"
+ui_print " Version=$MODVER"
+ui_print " VersionCode=$MODVERCODE"
+if [ "$KSU" == true ]; then
+  ui_print " KSUVersion=$KSU_VER"
+  ui_print " KSUVersionCode=$KSU_VER_CODE"
+  ui_print " KSUKernelVersionCode=$KSU_KERNEL_VER_CODE"
+  sed -i 's|#k||g' $MODPATH/post-fs-data.sh
+else
+  ui_print " MagiskVersion=$MAGISK_VER"
+  ui_print " MagiskVersionCode=$MAGISK_VER_CODE"
+fi
+ui_print " "
+
+# architecture
+if [ "$ABILIST" ]; then
+  ui_print "- $ABILIST architecture"
+  ui_print " "
+fi
+NAME=arm64-v8a
+NAME2=armeabi-v7a
+if ! echo "$ABILIST" | grep -q $NAME; then
+  if echo "$ABILIST" | grep -q $NAME2; then
+    rm -rf `find $MODPATH/system -type d -name *64*`
+  else
+    if [ "$BOOTMODE" == true ]; then
+      ui_print "! This ROM doesn't support $NAME nor $NAME2 architecture"
+    else
+      ui_print "! This Recovery doesn't support $NAME nor $NAME2 architecture"
+      ui_print "  Try to install via Magisk app instead"
+    fi
+    abort
+  fi
+fi
+if ! echo "$ABILIST" | grep -q $NAME2; then
+  rm -rf $MODPATH/system*/lib\
+   $MODPATH/system*/vendor/lib
+  if [ "$BOOTMODE" != true ]; then
+    ui_print "! This Recovery doesn't support $NAME2 architecture"
+    ui_print "  Try to install via Magisk app instead"
+    ui_print " "
+  fi
+fi
+
+# sdk
+NUM=34
+if [ "$API" -lt $NUM ]; then
+  ui_print "! Unsupported SDK $API."
+  ui_print "  You have to upgrade your Android version"
+  ui_print "  at least SDK $NUM to use this module."
+  abort
+else
+  ui_print "- SDK $API"
+  ui_print " "
+fi
+
+# hypercore
+if [ ! -d /data/adb/modules/HyperCoreA16 ]\
+|| [ -f /data/adb/modules/HyperCoreA16/remove ]; then
+  ui_print "! HyperCore A16 module is not installed."
+  ui_print "  Install HyperCore-A16 v1.1+ first, reboot, then retry."
+  abort
+else
+  rm -f /data/adb/modules/HyperCoreA16/disable
+fi
+HCVER=`grep_prop versionCode /data/adb/modules/HyperCoreA16/module.prop`
+[ ! "$HCVER" ] && HCVER=0
+if [ "$HCVER" -lt 2 ]; then
+  ui_print "! HyperCore A16 v1.1+ required (micloud-sdk,"
+  ui_print "  security-device-credential-sdk.jar)."
+  ui_print "  Found versionCode $HCVER."
+  abort
+fi
+ui_print "- HyperCore A16 versionCode $HCVER"
+ui_print " "
+
+# check
+if [ ! -d /data/adb/modules/HyperGalleryEditor ]; then
+  ui_print "! Hyper Gallery Editor module is not installed."
+  ui_print "  Edit option in Hyper Gallery AI requires"
+  ui_print "  Hyper Gallery Editor module."
+  ui_print "  Please read the Github README installation guide!"
+  ui_print " "
+fi
+
+# sepolicy
+FILE=$MODPATH/sepolicy.rule
+DES=$MODPATH/sepolicy.pfsd
+if [ "`grep_prop sepolicy.sh $OPTIONALS`" == 1 ]\
+&& [ -f $FILE ]; then
+  mv -f $FILE $DES
+fi
+
+# cleaning
+ui_print "- Cleaning..."
+PKGS=`cat $MODPATH/package.txt`
+if [ "$BOOTMODE" == true ]; then
+  for PKG in $PKGS; do
+    FILE=`find /data/app -name *$PKG*`
+    if [ "$FILE" ]; then
+      RES=`pm uninstall $PKG 2>/dev/null`
+    fi
+  done
+fi
+remove_sepolicy_rule
+ui_print " "
+
+# function
+conflict() {
+for NAME in $NAMES; do
+  DIR=/data/adb/modules_update/$NAME
+  if [ -f $DIR/uninstall.sh ]; then
+    sh $DIR/uninstall.sh
+  fi
+  rm -rf $DIR
+  DIR=/data/adb/modules/$NAME
+  rm -f $DIR/update
+  touch $DIR/remove
+  FILE=/data/adb/modules/$NAME/uninstall.sh
+  if [ -f $FILE ]; then
+    sh $FILE
+    rm -f $FILE
+  fi
+  rm -rf /metadata/magisk/$NAME\
+   /mnt/vendor/persist/magisk/$NAME\
+   /persist/magisk/$NAME\
+   /data/unencrypted/magisk/$NAME\
+   /cache/magisk/$NAME\
+   /cust/magisk/$NAME\
+   /klogdump/magisk/$NAME
+done
+}
+
+# conflict
+NAMES="MIUIGallery MiuiGallery HyperGallery"
+conflict
+
+# function
+cleanup() {
+if [ -f $DIR/uninstall.sh ]; then
+  sh $DIR/uninstall.sh
+fi
+DIR=/data/adb/modules_update/$MODID
+if [ -f $DIR/uninstall.sh ]; then
+  sh $DIR/uninstall.sh
+fi
+}
+
+# cleanup
+DIR=/data/adb/modules/$MODID
+FILE=$DIR/module.prop
+PREVMODNAME=`grep_prop name $FILE`
+if [ "`grep_prop data.cleanup $OPTIONALS`" == 1 ]; then
+  sed -i 's|^data.cleanup=1|data.cleanup=0|g' $OPTIONALS
+  ui_print "- Cleaning-up $MODID data..."
+  cleanup
+  ui_print " "
+#elif [ -d $DIR ]\
+#&& [ "$PREVMODNAME" != "$MODNAME" ]; then
+#  ui_print "- Different module name is detected"
+#  ui_print "  Cleaning-up $MODID data..."
+#  cleanup
+#  ui_print " "
+fi
+
+# function
+permissive_2() {
+sed -i 's|#2||g' $MODPATH/post-fs-data.sh
+}
+permissive() {
+FILE=/sys/fs/selinux/enforce
+FILE2=/sys/fs/selinux/policy
+if [ "`toybox cat $FILE`" = 1 ]; then
+  chmod 640 $FILE
+  chmod 440 $FILE2
+  echo 0 > $FILE
+  if [ "`toybox cat $FILE`" = 1 ]; then
+    ui_print "  Your device can't be turned to Permissive state."
+    ui_print "  Using Magisk Permissive mode instead."
+    permissive_2
+  else
+    echo 1 > $FILE
+    sed -i 's|#1||g' $MODPATH/post-fs-data.sh
+  fi
+else
+  sed -i 's|#1||g' $MODPATH/post-fs-data.sh
+fi
+}
+
+# permissive
+if [ "`grep_prop permissive.mode $OPTIONALS`" == 1 ]; then
+  ui_print "- Using device Permissive mode."
+  rm -f $MODPATH/sepolicy.rule
+  permissive
+  ui_print " "
+elif [ "`grep_prop permissive.mode $OPTIONALS`" == 2 ]; then
+  ui_print "- Using Magisk Permissive mode."
+  rm -f $MODPATH/sepolicy.rule
+  permissive_2
+  ui_print " "
+fi
+
+# function
+extract_lib() {
+for APP in $APPS; do
+  FILE=`find $MODPATH/system -type f -name $APP.apk`
+  if [ -f `dirname $FILE`/extract ]; then
+    ui_print "- Extracting..."
+    DIR=`dirname $FILE`/lib/"$ARCHLIB"
+    mkdir -p $DIR
+    rm -rf $TMPDIR/*
+    DES=lib/"$ABILIB"/*
+    unzip -d $TMPDIR -o $FILE $DES
+    cp -f $TMPDIR/$DES $DIR
+    ui_print " "
+  fi
+done
+}
+hide_oat() {
+for APP in $APPS; do
+  REPLACE="$REPLACE
+  `find $MODPATH/system -type d -name $APP | sed "s|$MODPATH||g"`/oat"
+done
+}
+
+# extract
+APPS="`ls $MODPATH/system/priv-app`
+      `ls $MODPATH/system/app`"
+ARCHLIB=arm64
+ABILIB=arm64-v8a
+extract_lib
+ARCHLIB=arm
+if echo "$ABILIST" | grep -q armeabi-v7a; then
+  ABILIB=armeabi-v7a
+  extract_lib
+elif echo "$ABILIST" | grep -q armeabi; then
+  ABILIB=armeabi
+  extract_lib
+else
+  ABILIB=armeabi-v7a
+  extract_lib
+fi
+ARCHLIB=x64
+ABILIB=x86_64
+extract_lib
+ARCHLIB=x86
+ABILIB=x86
+extract_lib
+rm -f `find $MODPATH/system -type f -name extract`
+# hide
+hide_oat
+
+# function
+change_name() {
+if grep -q $NAME $FILE; then
+  ui_print "- Changing $NAME to $NAME2 at"
+  ui_print "$FILE"
+  ui_print "  Please wait..."
+  sed -i "s|$NAME|$NAME2|g" $FILE
+  ui_print " "
+fi
+}
+
+# features
+PROP=`grep_prop miui.features $OPTIONALS`
+FILE=$MODPATH/service.sh
+if [ "$PROP" != 0 ]; then
+  FILE=`find $MODPATH/system -type f -name libnexeditorsdk.so`
+  NAME=ro.product.device
+  NAME2=ro.gallery.device
+  change_name
+  FILE=`find $MODPATH -type f -name libnex*.so`
+  NAME=ro.product.manufacturer
+  NAME2=ro.gallery.manufacturer
+  change_name
+fi
+if [ "$PROP" == 0 ]; then
+  ui_print "- Removing ro.gallery.device and ro.gallery.manufacturer"
+  ui_print "  changes..."
+  sed -i 's|resetprop -n ro.gallery.device cepheus||g' $FILE
+  sed -i 's|resetprop -n ro.gallery.manufacturer Xiaomi||g' $FILE
+  ui_print " "
+elif [ "$PROP" ] && [ "$PROP" != 1 ]; then
+  ui_print "- ro.gallery.device will set to $PROP"
+  sed -i "s|cepheus|$PROP|g" $FILE
+  ui_print " "
+fi
+
+# prepare
+PKG=com.miui.gallery
+DIR=/storage/emulated/"$UID"/Android/data/$PKG/files/mounted
+DIR2=/storage/emulated/"$UID"/Android/data/$PKG/cache
+ui_print "- Creating directories:"
+ui_print "  $DIR"
+mkdir -p $DIR
+ui_print "  $DIR2"
+mkdir -p $DIR2
+ui_print " "
+
+
+
+
+
+
