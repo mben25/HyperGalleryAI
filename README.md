@@ -13,6 +13,9 @@ Gallery app by Xiaomi Inc. ported and integrated as a Magisk Module for all supp
 
 ## Changelog
 
+v1.1 (mbenanaya)
+- Update MiuiGallery.apk to v4.3.1.16 CN (stock Xiaomi-signed build)
+
 v1.0 (mbenanaya)
 - Ported to HyperCore-A16 (`id=HyperCoreA16`, v1.1+) instead of Miui Core Magisk Module
 - Renamed module id to HyperGalleryAI
@@ -56,11 +59,10 @@ v0.1
 - Go to app info of Gallery and Gallery Editor app and allow the network access to be able to download the online features
 
 ## Known Issue
-Google Photos backup feature is broken because the apk is modified
+- The apk is the stock CN build, unpatched, so it may crash on non-HyperOS ROMs
 
 ## Support & Bug Report
 - https://github.com/mben25/HyperGalleryAI/issues
 
 ## Credits and Contributors
-- Original module: Rei Ryuki the Fixer
 - HyperCore-A16 port: mbenanaya

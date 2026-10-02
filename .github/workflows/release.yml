@@ -33,7 +33,7 @@ jobs:
       - name: Build zip and update.json
         if: steps.check.outputs.exists != 'true'
         run: |
-          # Short zip name: v1.1-rr0.4 -> HyperGalleryAI-v1.1.zip
+          # Short zip name: v1.1-beta -> HyperGalleryAI-v1.1.zip
           V="${{ steps.prop.outputs.version }}"
           ZIP="HyperGalleryAI-${V%%-*}.zip"
           zip -r9 "$ZIP" . -x '.git/*' '.github/*' '.parts/*' '.gitignore' 'CHANGELOG.md' '*.zip' '*.DS_Store'
