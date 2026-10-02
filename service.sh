@@ -88,6 +88,30 @@ if appops get $PKG >/dev/null 2>&1; then
   appops_set
 fi
 
+# scanner fix: CN build runs as international here, but its Google
+# clean-data step is stubbed, so GLOBAL_FIRST_CLEAN_TAG stays true and
+# ScannerEngine never starts (empty gallery). Mark clean as done.
+PKG=com.miui.gallery
+DIR=/data/data/$PKG/shared_prefs
+PREF=$DIR/com.miui.gallery_preferences_new.xml
+KEY=GLOBAL_FIRST_CLEAN_TAG
+UID=`grep "^$PKG " /data/system/packages.list | awk '{print $2}'`
+if [ "$UID" ] && ! grep -q "\"$KEY\" value=\"false\"" $PREF 2>/dev/null; then
+  am force-stop $PKG
+  if [ -f $PREF ]; then
+    sed -i "/\"$KEY\"/d" $PREF
+    sed -i "s|</map>|    <boolean name=\"$KEY\" value=\"false\" />\n</map>|" $PREF
+  else
+    mkdir -p $DIR
+    printf '%s\n' "<?xml version='1.0' encoding='utf-8' standalone='yes' ?>" \
+      "<map>" "    <boolean name=\"$KEY\" value=\"false\" />" "</map>" > $PREF
+    chmod 771 $DIR
+    chmod 660 $PREF
+  fi
+  chown -R $UID:$UID $DIR
+  chcon -R `ls -dZ /data/data/$PKG | awk '{print $1}'` $DIR
+fi
+
 # grant
 PKG=cn.wps.moffice_eng.xiaomi.lite
 if appops get $PKG >/dev/null 2>&1; then

@@ -1,5 +1,8 @@
 # Hyper Gallery AI changelog
 
+## v1.3 (4)
+- Fix empty gallery (no photos/videos): set `GLOBAL_FIRST_CLEAN_TAG=false` at boot so ScannerEngine starts. CN build runs as international on this ROM, but its Google clean-data step is stubbed and never clears the flag.
+
 ## v1.2 (3)
 - Re-release to test KernelSU Next OTA update from GitHub (no app changes).
 
