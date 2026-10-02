@@ -1,5 +1,8 @@
 # Hyper Gallery AI changelog
 
+## v1.2 (3)
+- Re-release to test KernelSU Next OTA update from GitHub (no app changes).
+
 ## v1.1 (2)
 - Update MiuiGallery.apk to Gallery 4.3.1.16 CN (stock, Xiaomi-signed, target SDK 35).
 
